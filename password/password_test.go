@@ -9,15 +9,15 @@ import (
 	"github.com/jabrilo/authstack/password"
 )
 
-type mockAuthenticator struct {
+type mockVerifier struct {
 	authenticateFn func(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
-func (m *mockAuthenticator) AuthenticatePassword(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
+func (m *mockVerifier) AuthenticatePassword(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 	if m.authenticateFn != nil {
 		return m.authenticateFn(ctx, identifier, secret)
 	}
-	return nil, errors.New("austack: mockAuthenticator.AuthenticatePassword not implemented")
+	return nil, errors.New("austack: mockVerifier.AuthenticatePassword not implemented")
 }
 
 func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
@@ -26,18 +26,18 @@ func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
 	testPrincipalID := "testID"
 
 	tests := []struct {
-		name              string
-		identifier        string
-		secret            string
-		mockAuthenticator password.Authenticator
-		wantErr           bool
-		wantID            string
+		name         string
+		identifier   string
+		secret       string
+		mockVerifier password.Verifier
+		wantErr      bool
+		wantID       string
 	}{
 		{
 			name:       "authentication fails when identifier and secret are empty",
 			identifier: "",
 			secret:     "",
-			mockAuthenticator: &mockAuthenticator{
+			mockVerifier: &mockVerifier{
 				authenticateFn: func(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 					_ = ctx
 					if identifier == "" || secret == "" {
@@ -58,7 +58,7 @@ func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
 			name:       "authentication succeeds with valid identifiers",
 			identifier: testIdentifierEmail,
 			secret:     testSecret,
-			mockAuthenticator: &mockAuthenticator{
+			mockVerifier: &mockVerifier{
 				authenticateFn: func(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 					_ = ctx
 					if identifier == testIdentifierEmail && secret == testSecret {
@@ -81,10 +81,10 @@ func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := password.Config{
-				Authenticator: tt.mockAuthenticator,
+				Verifier: tt.mockVerifier,
 			}
 
-			principal, err := cfg.Authenticator.AuthenticatePassword(context.Background(), tt.identifier, tt.secret)
+			principal, err := cfg.Verifier.AuthenticatePassword(context.Background(), tt.identifier, tt.secret)
 
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("AuthenticatePassword error = %v, wantErr %v", err, tt.wantErr)
