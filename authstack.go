@@ -5,6 +5,8 @@ import (
 	"errors"
 )
 
+var ErrNilSessionManager = errors.New("authstack: session manager is required")
+
 type SessionIssuer interface {
 	IssuerSession(ctx context.Context, principal *Principal) error
 }
@@ -15,7 +17,7 @@ type AuthStack struct {
 
 func New(sm SessionManager) (*AuthStack, error) {
 	if sm == nil {
-		return nil, errors.New("authstack: session manager is required")
+		return nil, ErrNilSessionManager
 	}
 	return &AuthStack{sessions: sm}, nil
 }
