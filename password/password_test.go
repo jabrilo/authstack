@@ -1,20 +1,23 @@
-package authstack
+package password_test
 
 import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/jabrilo/authstack"
+	"github.com/jabrilo/authstack/password"
 )
 
-type mockPasswordAuthenticator struct {
-	authenticateFn func(ctx context.Context, identifier, secret string) (*Principal, error)
+type mockAuthenticator struct {
+	authenticateFn func(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
-func (m *mockPasswordAuthenticator) AuthenticatePassword(ctx context.Context, identifier, secret string) (*Principal, error) {
+func (m *mockAuthenticator) AuthenticatePassword(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 	if m.authenticateFn != nil {
 		return m.authenticateFn(ctx, identifier, secret)
 	}
-	return nil, errors.New("austack: mockPasswordAuthenticator.AuthenticatePassword not implemented")
+	return nil, errors.New("austack: mockAuthenticator.AuthenticatePassword not implemented")
 }
 
 func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
@@ -26,7 +29,7 @@ func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
 		name              string
 		identifier        string
 		secret            string
-		mockAuthenticator PasswordAuthenticator
+		mockAuthenticator password.Authenticator
 		wantErr           bool
 		wantID            string
 	}{
@@ -34,17 +37,17 @@ func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
 			name:       "authentication fails when identifier and secret are empty",
 			identifier: "",
 			secret:     "",
-			mockAuthenticator: &mockPasswordAuthenticator{
-				authenticateFn: func(ctx context.Context, identifier, secret string) (*Principal, error) {
+			mockAuthenticator: &mockAuthenticator{
+				authenticateFn: func(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 					_ = ctx
 					if identifier == "" || secret == "" {
 						return nil, errors.New("authstack: invalid credentials")
 					}
-					return &Principal{
+					return &authstack.Principal{
 						ID:       testPrincipalID,
-						Type:     PrincipalUser,
+						Type:     authstack.PrincipalUser,
 						Claims:   map[string]any{"testing": true},
-						Provider: ProviderPassword,
+						Provider: authstack.ProviderPassword,
 					}, nil
 				},
 			},
@@ -55,15 +58,15 @@ func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
 			name:       "authentication succeeds with valid identifiers",
 			identifier: testIdentifierEmail,
 			secret:     testSecret,
-			mockAuthenticator: &mockPasswordAuthenticator{
-				authenticateFn: func(ctx context.Context, identifier, secret string) (*Principal, error) {
+			mockAuthenticator: &mockAuthenticator{
+				authenticateFn: func(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 					_ = ctx
 					if identifier == testIdentifierEmail && secret == testSecret {
-						return &Principal{
+						return &authstack.Principal{
 							ID:       testPrincipalID,
-							Type:     PrincipalUser,
+							Type:     authstack.PrincipalUser,
 							Claims:   map[string]any{"testing": true},
-							Provider: ProviderPassword,
+							Provider: authstack.ProviderPassword,
 						}, nil
 					}
 
@@ -77,7 +80,7 @@ func TestPasswordAuthenticator_AuthenticatePassword(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := PasswordConfig{
+			cfg := password.Config{
 				Authenticator: tt.mockAuthenticator,
 			}
 
