@@ -8,42 +8,10 @@ import (
 	"fmt"
 )
 
-type IdentifierType string
-
-const (
-	IdentifierEmail    IdentifierType = "email"
-	IdentifierUsername IdentifierType = "username"
-	IdentifierPhone    IdentifierType = "phone"
-)
-
 type SessionManager interface {
 	CreateSession(ctx context.Context, p Principal) error
 	GetSession(ctx context.Context, sessionID string) (*Principal, error)
 	RevokeSession(ctx context.Context, sessionID string) error
-}
-
-type PrincipalType string
-
-const (
-	PrincipalUser    PrincipalType = "user"
-	PrincipalService PrincipalType = "service"
-)
-
-type ProviderType string
-
-const (
-	ProviderPassword    ProviderType = "password"
-	ProviderOIDC        ProviderType = "oidc"
-	ProviderAPIKey      ProviderType = "apikey"
-	ProviderStaticToken ProviderType = "static_token"
-)
-
-type Principal struct {
-	ID       string
-	Type     PrincipalType
-	OwnerID  *string
-	Claims   map[string]any // TODO: Claims or Metadata?
-	Provider ProviderType
 }
 
 type config struct {
