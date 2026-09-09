@@ -1,10 +1,7 @@
 package authstack
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
-	"fmt"
 )
 
 type AuthStack struct {
@@ -16,12 +13,4 @@ func New(sm SessionManager) (*AuthStack, error) {
 		return nil, errors.New("authstack: session manager is required")
 	}
 	return &AuthStack{sessions: sm}, nil
-}
-
-func defaultStateGenerator() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("authstack: failed to generate secure state: %w", err)
-	}
-	return hex.EncodeToString(b), nil
 }
