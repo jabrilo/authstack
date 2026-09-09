@@ -8,7 +8,7 @@ import (
 var ErrNilSessionManager = errors.New("authstack: session manager is required")
 
 type SessionIssuer interface {
-	IssuerSession(ctx context.Context, principal *Principal) error
+	IssueSession(ctx context.Context, principal *Principal) error
 }
 
 type AuthStack struct {
