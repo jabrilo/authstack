@@ -195,16 +195,6 @@ type OIDCStateStore interface {
 	GetAndClearState(ctx context.Context, state string) (*OIDCStateData, error)
 }
 
-type PasswordAuthenticator interface {
-	AuthenticatePassword(ctx context.Context, identifier, secret string) (*Principal, error)
-}
-
-type PasswordConfig struct {
-	authenticator       PasswordAuthenticator
-	IdentityCustomizers map[IdentifierType]func(id string) bool
-	AllowedIdentifiers  []IdentifierType
-}
-
 type OIDCConfig struct {
 	oidcStateStore OIDCStateStore
 	oidcProviders  map[string]OIDCProvider
