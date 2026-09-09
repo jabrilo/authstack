@@ -6,12 +6,12 @@ import (
 	"github.com/jabrilo/authstack"
 )
 
-type Authenticator interface {
+type Verifier interface {
 	AuthenticatePassword(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
 type Config struct {
-	Authenticator       Authenticator
+	Verifier            Verifier
 	IdentityCustomizers map[authstack.IdentifierType]func(id string) bool
 	AllowedIdentifiers  []authstack.IdentifierType
 }
