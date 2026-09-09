@@ -1,18 +1,11 @@
 package authstack
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 )
-
-type SessionManager interface {
-	CreateSession(ctx context.Context, p Principal) error
-	GetSession(ctx context.Context, sessionID string) (*Principal, error)
-	RevokeSession(ctx context.Context, sessionID string) error
-}
 
 type config struct {
 	sessionManager SessionManager
