@@ -1,13 +1,5 @@
 package authstack
 
-type IdentifierType string
-
-const (
-	IdentifierEmail    IdentifierType = "email"
-	IdentifierUsername IdentifierType = "username"
-	IdentifierPhone    IdentifierType = "phone"
-)
-
 type PrincipalType string
 
 const (

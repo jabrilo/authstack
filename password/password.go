@@ -8,6 +8,15 @@ import (
 	"github.com/jabrilo/authstack"
 )
 
+type IdentifierType string
+
+const (
+	IdentifierEmail    IdentifierType = "email"
+	IdentifierUsername IdentifierType = "username"
+	IdentifierPhone    IdentifierType = "phone"
+	IdentifierGeneric  IdentifierType = "generic"
+)
+
 var (
 	ErrIdentifierNotRecognized = errors.New("password: identifier did not match any allowed type")
 	ErrIdentifierNotAllowed    = errors.New("password: identifier type not allowed")
@@ -16,13 +25,13 @@ var (
 )
 
 type Verifier interface {
-	ResolveIdendifierType(identifier string) (authstack.IdentifierType, error)
+	ResolveIdendifierType(identifier string) (IdentifierType, error)
 	AuthenticatePassword(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
 type Config struct {
 	Verifier           Verifier
-	AllowedIdentifiers []authstack.IdentifierType
+	AllowedIdentifiers []IdentifierType
 }
 
 type Authenticator struct {

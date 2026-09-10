@@ -10,7 +10,7 @@ import (
 )
 
 type mockVerifier struct {
-	resolveIdentifierTypeFn func(identifier string) (authstack.IdentifierType, error)
+	resolveIdentifierTypeFn func(identifier string) (password.IdentifierType, error)
 	authenticateFn          func(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
@@ -21,7 +21,7 @@ func (m *mockVerifier) AuthenticatePassword(ctx context.Context, identifier, sec
 	return nil, errors.New("austack: mockVerifier.AuthenticatePassword not implemented")
 }
 
-func (m *mockVerifier) ResolveIdendifierType(identifier string) (authstack.IdentifierType, error) {
+func (m *mockVerifier) ResolveIdendifierType(identifier string) (password.IdentifierType, error) {
 	if m.resolveIdentifierTypeFn != nil {
 		return m.resolveIdentifierTypeFn(identifier)
 	}
