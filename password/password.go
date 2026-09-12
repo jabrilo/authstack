@@ -29,7 +29,7 @@ var (
 )
 
 type Registrar interface {
-	Register(ctx context.Context, identifier, hashedSecret string) (*authstack.Principal, error)
+	RegisterPassword(ctx context.Context, identifier, hashedSecret string) (*authstack.Principal, error)
 }
 
 type Verifier interface {
@@ -87,6 +87,10 @@ type Authenticator struct {
 	cfg    Config
 }
 
+func (a *Authenticator) GetHasher() Hasher {
+	return a.cfg.Hasher
+}
+
 func New(si authstack.SessionIssuer, c Config) (*Authenticator, error) {
 	if si == nil {
 		return nil, errors.New("password: session issuer is required")
@@ -119,7 +123,7 @@ func (a *Authenticator) validateIdentifier(identifier string) error {
 	return nil
 }
 
-func (a *Authenticator) Create(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
+func (a *Authenticator) Register(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 	if a.cfg.Registrar == nil {
 		return nil, ErrRegistrarRequired
 	}
@@ -133,7 +137,7 @@ func (a *Authenticator) Create(ctx context.Context, identifier, secret string) (
 		return nil, err
 	}
 
-	principal, err := a.cfg.Registrar.Register(ctx, identifier, hashedSecret)
+	principal, err := a.cfg.Registrar.RegisterPassword(ctx, identifier, hashedSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +151,8 @@ func (a *Authenticator) Create(ctx context.Context, identifier, secret string) (
 	return principal, nil
 }
 
-func (a *Authenticator) CreateAndIssueSession(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
-	principal, err := a.Create(ctx, identifier, secret)
+func (a *Authenticator) RegisterAndIssueSession(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
+	principal, err := a.Register(ctx, identifier, secret)
 	if err != nil {
 		return nil, err
 	}
