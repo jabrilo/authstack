@@ -21,7 +21,7 @@ func (m *mockVerifier) AuthenticatePassword(ctx context.Context, identifier, sec
 	return nil, errors.New("austack: mockVerifier.AuthenticatePassword not implemented")
 }
 
-func (m *mockVerifier) ResolveIdendifierType(identifier string) (password.IdentifierType, error) {
+func (m *mockVerifier) ResolveIdentifierType(identifier string) (password.IdentifierType, error) {
 	if m.resolveIdentifierTypeFn != nil {
 		return m.resolveIdentifierTypeFn(identifier)
 	}
