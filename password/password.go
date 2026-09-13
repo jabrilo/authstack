@@ -29,6 +29,7 @@ var (
 	ErrHookLookupRequired             = errors.New("password: look up hook is required")
 	ErrHookIdentifierResolverRequired = errors.New("password: identity resolver hook is required")
 	ErrEmptyEnumerationGardSecret     = errors.New("password: enumeration guard secret must not be empty (leave unset to use the default)")
+	ErrPasswordHasherRequired         = errors.New("password: password hasher is required")
 )
 
 type Registrar interface {
@@ -81,7 +82,7 @@ func NewConfig(opts ...Option) (Config, error) {
 		opt(&cfg)
 	}
 	if cfg.EnumerationGuardSecret == "" {
-		return Config{}, errors.New("password: enumeration guard secret must not be empty (leave unset to use the default)")
+		return Config{}, ErrEmptyEnumerationGardSecret
 	}
 	return cfg, nil
 }
@@ -109,12 +110,23 @@ func New(
 		return nil, ErrHookLookupRequired
 	}
 
+	if cfg.EnumerationGuardSecret == "" {
+		return nil, ErrEmptyEnumerationGardSecret
+	}
+
+	if cfg.Hasher == nil {
+		return nil, ErrPasswordHasherRequired
+	}
+
 	guardHash, err := cfg.Hasher.Hash(context.Background(), cfg.EnumerationGuardSecret)
 	if err != nil {
 		return nil, fmt.Errorf("password: failed to precompute enumeration guard hash: %w", err)
 	}
 
 	return &Authenticator{
+		resolve:   resolve,
+		register:  register,
+		lookup:    lookup,
 		issuer:    si,
 		cfg:       cfg,
 		guardHash: guardHash,
