@@ -20,6 +20,6 @@ type Principal struct {
 	ID       string
 	Type     PrincipalType
 	OwnerID  *string
-	Claims   map[string]any // TODO: Claims or Metadata?
+	Claims   map[string]any
 	Provider ProviderType
 }
