@@ -11,8 +11,6 @@ import (
 
 type IdentifierType string
 
-const defaultEnumerationGuardSecret = "default-enumeration-guard-secret"
-
 const (
 	IdentifierEmail    IdentifierType = "email"
 	IdentifierUsername IdentifierType = "username"
@@ -20,38 +18,42 @@ const (
 	IdentifierGeneric  IdentifierType = "generic"
 )
 
+const defaultEnumerationGuardSecret = "default-enumeration-guard-secret"
+
 var (
-	ErrIdentifierNotRecognized        = errors.New("password: identifier did not match any allowed type")
-	ErrIdentifierNotAllowed           = errors.New("password: identifier type not allowed")
-	ErrInvalidCredentials             = errors.New("password: invalid credentials")
-	ErrNilPrincipal                   = errors.New("password: lookup returned nil principal with nil error")
-	ErrHookRegistrarRequired          = errors.New("password: registrar hook is required")
-	ErrHookLookupRequired             = errors.New("password: look up hook is required")
-	ErrHookIdentifierResolverRequired = errors.New("password: identity resolver hook is required")
-	ErrEmptyEnumerationGardSecret     = errors.New("password: enumeration guard secret must not be empty (leave unset to use the default)")
-	ErrPasswordHasherRequired         = errors.New("password: password hasher is required")
+	ErrIdentifierNotRecognized = errors.New("password: identifier did not match any allowed type")
+	ErrIdentifierNotAllowed    = errors.New("password: identifier type not allowed")
+	ErrInvalidCredentials      = errors.New("password: invalid credentials")
+	ErrNilPrincipal            = errors.New("password: lookup returned nil principal with nil error")
+	ErrHookRegistrarRequired   = errors.New("password: registrar hook is required")
+	ErrHookLookupRequired      = errors.New("password: look up hook is required")
+	ErrHookResolverRequired    = errors.New("password: identity resolver hook is required")
+	ErrEmptyGardSecret         = errors.New("password: enumeration guard secret must not be empty (leave unset to use the default)")
+	ErrPasswordHasherRequired  = errors.New("password: password hasher is required")
 )
 
 type Registrar interface {
-	Register(ctx context.Context, identifier, hashedSecret string) (*authstack.Principal, error)
+	RegisterPrincipal(ctx context.Context, identifier, hashedSecret string) (*authstack.Principal, error)
 }
 
 type Verifier interface {
-	Authenticate(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
+	AuthenticatePrincipal(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
-type RegistrarHook func(ctx context.Context, identifier, hashedSecret string) (*authstack.Principal, error)
+type RegistrarHook func(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
+
 type LookupHook func(ctx context.Context, identifier string) (principal *authstack.Principal, hashedSecret string, err error)
+
 type IdentityResolverHook func(ctx context.Context, identifier string) (IdentifierType, error)
 
 type Config struct {
 	Hasher                 Hasher
+	IdentityResolver       IdentityResolverHook
 	AllowedIdentifiers     []IdentifierType
 	EnumerationGuardSecret string
 }
 
-type Authenticator struct {
-	issuer    authstack.SessionIssuer
+type PasswordAuth struct {
 	cfg       Config
 	resolve   IdentityResolverHook
 	register  RegistrarHook
@@ -73,35 +75,41 @@ func WithEnumerationGuardSecret(secret string) Option {
 	return func(c *Config) { c.EnumerationGuardSecret = secret }
 }
 
-func NewConfig(opts ...Option) (Config, error) {
+func WithIdentityResolver(h IdentityResolverHook) Option {
+	return func(c *Config) { c.IdentityResolver = h }
+}
+
+func defaultIdentityResolver(_ context.Context, _ string) (IdentifierType, error) {
+	return IdentifierGeneric, nil
+}
+
+func NewConfig(opts ...Option) Config {
 	cfg := Config{
 		Hasher:                 DefaultHasher(),
 		EnumerationGuardSecret: defaultEnumerationGuardSecret,
+		IdentityResolver:       defaultIdentityResolver,
 	}
+
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	if cfg.EnumerationGuardSecret == "" {
-		return Config{}, ErrEmptyEnumerationGardSecret
+
+	if cfg.Hasher == nil {
+		cfg.Hasher = DefaultHasher()
 	}
-	return cfg, nil
+
+	if cfg.EnumerationGuardSecret == "" {
+		cfg.EnumerationGuardSecret = defaultEnumerationGuardSecret
+	}
+
+	if cfg.IdentityResolver == nil {
+		cfg.IdentityResolver = defaultIdentityResolver
+	}
+
+	return cfg
 }
 
-func New(
-	si authstack.SessionIssuer,
-	register RegistrarHook,
-	lookup LookupHook,
-	resolve IdentityResolverHook,
-	cfg Config,
-) (*Authenticator, error) {
-	if si == nil {
-		return nil, errors.New("password: session issuer is required")
-	}
-
-	if resolve == nil {
-		return nil, ErrHookIdentifierResolverRequired
-	}
-
+func New(register RegistrarHook, lookup LookupHook, cfg Config) (*PasswordAuth, error) {
 	if register == nil {
 		return nil, ErrHookRegistrarRequired
 	}
@@ -110,8 +118,12 @@ func New(
 		return nil, ErrHookLookupRequired
 	}
 
+	if cfg.IdentityResolver == nil {
+		cfg.IdentityResolver = defaultIdentityResolver
+	}
+
 	if cfg.EnumerationGuardSecret == "" {
-		return nil, ErrEmptyEnumerationGardSecret
+		return nil, ErrEmptyGardSecret
 	}
 
 	if cfg.Hasher == nil {
@@ -123,17 +135,16 @@ func New(
 		return nil, fmt.Errorf("password: failed to precompute enumeration guard hash: %w", err)
 	}
 
-	return &Authenticator{
-		resolve:   resolve,
+	return &PasswordAuth{
+		cfg:       cfg,
 		register:  register,
 		lookup:    lookup,
-		issuer:    si,
-		cfg:       cfg,
+		resolve:   cfg.IdentityResolver,
 		guardHash: guardHash,
 	}, nil
 }
 
-func (a *Authenticator) validateIdentifier(ctx context.Context, identifier string) error {
+func (a *PasswordAuth) validateIdentifier(ctx context.Context, identifier string) error {
 	t, err := a.resolve(ctx, identifier)
 	if err != nil {
 		return ErrIdentifierNotRecognized
@@ -146,7 +157,11 @@ func (a *Authenticator) validateIdentifier(ctx context.Context, identifier strin
 	return nil
 }
 
-func (a *Authenticator) Register(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
+func (a *PasswordAuth) RegisterPrincipal(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
+	if a.resolve == nil {
+		return nil, ErrHookResolverRequired
+	}
+
 	if a.register == nil {
 		return nil, ErrHookRegistrarRequired
 	}
@@ -174,20 +189,15 @@ func (a *Authenticator) Register(ctx context.Context, identifier, secret string)
 	return principal, nil
 }
 
-func (a *Authenticator) RegisterAndIssueSession(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
-	principal, err := a.Register(ctx, identifier, secret)
-	if err != nil {
-		return nil, err
+func (a *PasswordAuth) AuthenticatePrincipal(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
+	if a.resolve == nil {
+		return nil, ErrHookResolverRequired
 	}
 
-	if err = a.issuer.IssueSession(ctx, principal); err != nil {
-		return nil, err
+	if a.lookup == nil {
+		return nil, ErrHookLookupRequired
 	}
 
-	return principal, nil
-}
-
-func (a *Authenticator) Authenticate(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
 	if err := a.validateIdentifier(ctx, identifier); err != nil {
 		return nil, err
 	}
@@ -211,15 +221,5 @@ func (a *Authenticator) Authenticate(ctx context.Context, identifier, secret str
 	return principal, nil
 }
 
-func (a *Authenticator) AuthenticateAndIssueSession(ctx context.Context, identifier, secret string) (*authstack.Principal, error) {
-	principal, err := a.Authenticate(ctx, identifier, secret)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = a.issuer.IssueSession(ctx, principal); err != nil {
-		return nil, err
-	}
-
-	return principal, nil
-}
+var _ Registrar = (*PasswordAuth)(nil)
+var _ Verifier = (*PasswordAuth)(nil)
