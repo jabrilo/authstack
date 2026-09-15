@@ -1,9 +1,13 @@
-package authstack
+package static_token
 
-import "context"
+import (
+	"context"
+
+	"github.com/jabrilo/authstack"
+)
 
 type StaticTokenAuthenticator interface {
-	AuthenticateStaticToken(ctx context.Context, token string) (*Principal, error)
+	AuthenticateStaticToken(ctx context.Context, token string) (*authstack.Principal, error)
 }
 
 type StaticTokenConfig struct {

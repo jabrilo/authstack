@@ -1,4 +1,4 @@
-package authstack
+package oidc
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/jabrilo/authstack"
 )
 
 type ProviderOIDCConfig struct {
@@ -23,15 +25,15 @@ type ProviderOIDCConfig struct {
 type OIDCProvider interface {
 	Name() string
 	BuildAuthURL(state string) string
-	ExchangeCode(ctx context.Context, code string) (*Principal, error)
+	ExchangeCode(ctx context.Context, code string) (*authstack.Principal, error)
 }
 
 type StandardOIDCProvider struct {
 	cfg ProviderOIDCConfig
 
 	buildAuthURLFn   func(state string) (string, error)
-	exchangeCodeFn   func(ctx context.Context, code string) (*Principal, error)
-	extractProfileFn func(ctx context.Context, claims map[string]any) (*Principal, error)
+	exchangeCodeFn   func(ctx context.Context, code string) (*authstack.Principal, error)
+	extractProfileFn func(ctx context.Context, claims map[string]any) (*authstack.Principal, error)
 }
 
 func NewOIDCProvider(cfg ProviderOIDCConfig) (*StandardOIDCProvider, error) {
@@ -87,13 +89,13 @@ func (p *StandardOIDCProvider) BuildAuthURL(state string) (string, error) {
 	return p.standardbuildAuthURL(state)
 }
 
-func (p *StandardOIDCProvider) SetExtractProfileHook(fn func(ctx context.Context, claims map[string]any) (*Principal, error)) {
+func (p *StandardOIDCProvider) SetExtractProfileHook(fn func(ctx context.Context, claims map[string]any) (*authstack.Principal, error)) {
 	if fn != nil {
 		p.extractProfileFn = fn
 	}
 }
 
-func (p *StandardOIDCProvider) standardExtractProfile(ctx context.Context, claims map[string]any) (*Principal, error) {
+func (p *StandardOIDCProvider) standardExtractProfile(ctx context.Context, claims map[string]any) (*authstack.Principal, error) {
 	_ = ctx
 
 	rawSub, ok := claims["sub"]
@@ -106,28 +108,28 @@ func (p *StandardOIDCProvider) standardExtractProfile(ctx context.Context, claim
 		return nil, fmt.Errorf("authstack: invalid or non-string 'sub' claim type: %T", rawSub)
 	}
 
-	return &Principal{
+	return &authstack.Principal{
 		ID:       sub,
-		Type:     PrincipalUser,
-		Provider: ProviderOIDC,
+		Type:     authstack.PrincipalUser,
+		Provider: authstack.ProviderOIDC,
 		Claims:   claims,
 	}, nil
 }
 
-func (p *StandardOIDCProvider) ExtractProfile(ctx context.Context, claims map[string]any) (*Principal, error) {
+func (p *StandardOIDCProvider) ExtractProfile(ctx context.Context, claims map[string]any) (*authstack.Principal, error) {
 	if p.extractProfileFn != nil {
 		return p.extractProfileFn(ctx, claims)
 	}
 	return p.standardExtractProfile(ctx, claims)
 }
 
-func (p *StandardOIDCProvider) SetExchangeCodeHook(fn func(ctx context.Context, code string) (*Principal, error)) {
+func (p *StandardOIDCProvider) SetExchangeCodeHook(fn func(ctx context.Context, code string) (*authstack.Principal, error)) {
 	if fn != nil {
 		p.exchangeCodeFn = fn
 	}
 }
 
-func (p *StandardOIDCProvider) standardExchangeCode(ctx context.Context, code string) (*Principal, error) {
+func (p *StandardOIDCProvider) standardExchangeCode(ctx context.Context, code string) (*authstack.Principal, error) {
 	if code == "" {
 		return nil, errors.New("authstack: empty authorization code")
 	}
@@ -137,7 +139,7 @@ func (p *StandardOIDCProvider) standardExchangeCode(ctx context.Context, code st
 	return p.ExtractProfile(ctx, rawClaims)
 }
 
-func (p *StandardOIDCProvider) ExchangeCode(ctx context.Context, code string) (*Principal, error) {
+func (p *StandardOIDCProvider) ExchangeCode(ctx context.Context, code string) (*authstack.Principal, error) {
 	if p.exchangeCodeFn != nil {
 		return p.exchangeCodeFn(ctx, code)
 	}
