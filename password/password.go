@@ -43,6 +43,28 @@ type Verifier interface {
 	AuthenticatePrincipal(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
+type TransactionalRegistrar interface {
+	Registrar
+	RegisterPrincipalAnd(
+		ctx context.Context,
+		identifier string,
+		secret string,
+		tx RegistrationTransaction,
+		callback PrincipalCallback,
+	) (*authstack.Principal, error)
+}
+
+type TransactionalVerifier interface {
+	Verifier
+	AuthenticatePrincipalAnd(
+		ctx context.Context,
+		identifier string,
+		secret string,
+		tx AuthenticationTransaction,
+		callback PrincipalCallback,
+	) (*authstack.Principal, error)
+}
+
 type RegistrationTransaction interface {
 	RegisterPrincipal(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
@@ -276,3 +298,5 @@ func (a *PasswordAuth) AuthenticatePrincipalAnd(
 
 var _ Registrar = (*PasswordAuth)(nil)
 var _ Verifier = (*PasswordAuth)(nil)
+var _ TransactionalRegistrar = (*PasswordAuth)(nil)
+var _ TransactionalVerifier = (*PasswordAuth)(nil)
