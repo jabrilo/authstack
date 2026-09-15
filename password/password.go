@@ -40,18 +40,11 @@ type Verifier interface {
 	AuthenticatePrincipal(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
 }
 
-type RegistrarHook func(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
-
-type LookupHook func(ctx context.Context, identifier string) (principal *authstack.Principal, hashedSecret string, err error)
-
-type IdentityResolverHook func(ctx context.Context, identifier string) (IdentifierType, error)
-
-type Config struct {
-	Hasher                 Hasher
-	IdentityResolver       IdentityResolverHook
-	AllowedIdentifiers     []IdentifierType
-	EnumerationGuardSecret string
-}
+type (
+	RegistrarHook        func(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
+	LookupHook           func(ctx context.Context, identifier string) (principal *authstack.Principal, hashedSecret string, err error)
+	IdentityResolverHook func(ctx context.Context, identifier string) (IdentifierType, error)
+)
 
 type PasswordAuth struct {
 	cfg       Config
@@ -59,54 +52,6 @@ type PasswordAuth struct {
 	register  RegistrarHook
 	lookup    LookupHook
 	guardHash string
-}
-
-type Option func(*Config)
-
-func WithHasher(h Hasher) Option {
-	return func(c *Config) { c.Hasher = h }
-}
-
-func WithAllowedIdentifiers(types ...IdentifierType) Option {
-	return func(c *Config) { c.AllowedIdentifiers = types }
-}
-
-func WithEnumerationGuardSecret(secret string) Option {
-	return func(c *Config) { c.EnumerationGuardSecret = secret }
-}
-
-func WithIdentityResolver(h IdentityResolverHook) Option {
-	return func(c *Config) { c.IdentityResolver = h }
-}
-
-func defaultIdentityResolver(_ context.Context, _ string) (IdentifierType, error) {
-	return IdentifierGeneric, nil
-}
-
-func NewConfig(opts ...Option) Config {
-	cfg := Config{
-		Hasher:                 DefaultHasher(),
-		EnumerationGuardSecret: defaultEnumerationGuardSecret,
-		IdentityResolver:       defaultIdentityResolver,
-	}
-
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-
-	if cfg.Hasher == nil {
-		cfg.Hasher = DefaultHasher()
-	}
-
-	if cfg.EnumerationGuardSecret == "" {
-		cfg.EnumerationGuardSecret = defaultEnumerationGuardSecret
-	}
-
-	if cfg.IdentityResolver == nil {
-		cfg.IdentityResolver = defaultIdentityResolver
-	}
-
-	return cfg
 }
 
 func New(register RegistrarHook, lookup LookupHook, cfg Config) (*PasswordAuth, error) {
@@ -142,6 +87,10 @@ func New(register RegistrarHook, lookup LookupHook, cfg Config) (*PasswordAuth, 
 		resolve:   cfg.IdentityResolver,
 		guardHash: guardHash,
 	}, nil
+}
+
+func defaultIdentityResolver(_ context.Context, _ string) (IdentifierType, error) {
+	return IdentifierGeneric, nil
 }
 
 func (a *PasswordAuth) validateIdentifier(ctx context.Context, identifier string) error {
