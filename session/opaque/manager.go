@@ -85,6 +85,19 @@ type Manager struct {
 	now         func() time.Time
 }
 
+// WithSessionStore returns a copy of the manager configured with store.
+// The receiver is not modified; all session configuration is preserved.
+func (m *Manager) WithSessionStore(store SessionStore) (*Manager, error) {
+	if store == nil {
+		return nil, ErrSessionStoreRequired
+	}
+
+	bound := *m
+	bound.store = store
+
+	return &bound, nil
+}
+
 func (m *Manager) Create(ctx context.Context, principalID string) (*Session, error) {
 	id, err := m.idGenerator()
 	if err != nil {

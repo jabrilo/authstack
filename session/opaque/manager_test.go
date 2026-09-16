@@ -126,3 +126,59 @@ func TestManagerRevoke(t *testing.T) {
 		t.Fatalf("Get() error = %v, want %v", err, ErrSessionRevoked)
 	}
 }
+
+func TestManagerWithSessionStore(t *testing.T) {
+	now := time.Date(2026, time.January, 1, 12, 0, 0, 0, time.UTC)
+	originalStore := &memoryStore{}
+	manager, err := NewManager(
+		originalStore,
+		WithTTL(time.Hour),
+		WithClock(func() time.Time { return now }),
+		WithIDGenerator(func() (string, error) { return "session-1", nil }),
+	)
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	boundStore := &memoryStore{}
+	bound, err := manager.WithSessionStore(boundStore)
+	if err != nil {
+		t.Fatalf("WithSessionStore() error = %v", err)
+	}
+
+	session, err := bound.Create(context.Background(), "principal-1")
+	if err != nil {
+		t.Fatalf("bound.Create() error = %v", err)
+	}
+	if !session.ExpiresAt.Equal(now.Add(time.Hour)) {
+		t.Fatalf("session.ExpiresAt = %v, want %v", session.ExpiresAt, now.Add(time.Hour))
+	}
+	if _, ok := boundStore.sessions[session.ID]; !ok {
+		t.Fatal("bound manager did not use the supplied store")
+	}
+	if _, ok := originalStore.sessions[session.ID]; ok {
+		t.Fatal("original manager store was used by bound manager")
+	}
+
+	if _, err := manager.Create(context.Background(), "principal-2"); err != nil {
+		t.Fatalf("manager.Create() error = %v", err)
+	}
+	if _, ok := originalStore.sessions[session.ID]; !ok {
+		t.Fatal("original manager was rebound to the supplied store")
+	}
+}
+
+func TestManagerWithSessionStoreRequiresStore(t *testing.T) {
+	manager, err := NewManager(&memoryStore{})
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	bound, err := manager.WithSessionStore(nil)
+	if !errors.Is(err, ErrSessionStoreRequired) {
+		t.Fatalf("WithSessionStore() error = %v, want %v", err, ErrSessionStoreRequired)
+	}
+	if bound != nil {
+		t.Fatal("WithSessionStore() returned a manager for a nil store")
+	}
+}
