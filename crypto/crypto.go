@@ -1,4 +1,4 @@
-package authstack
+package crypto
 
 import (
 	"crypto/rand"
