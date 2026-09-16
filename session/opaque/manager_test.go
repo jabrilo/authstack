@@ -41,25 +41,9 @@ func (s *memoryStore) RevokeAll(_ context.Context, principalID string) error {
 	return nil
 }
 
-type testAccessor struct {
-	sessionID string
-	clear     bool
-}
-
-func (a *testAccessor) Set(_ context.Context, sessionID string) error {
-	a.sessionID = sessionID
-	return nil
-}
-
-func (a *testAccessor) Clear(context.Context) error {
-	a.clear = true
-	return nil
-}
-
 func TestManagerCreateAndGet(t *testing.T) {
 	now := time.Date(2026, time.January, 1, 12, 0, 0, 0, time.UTC)
 	store := &memoryStore{}
-	accessor := &testAccessor{}
 	manager, err := NewManager(
 		store,
 		WithTTL(time.Hour),
@@ -70,15 +54,12 @@ func TestManagerCreateAndGet(t *testing.T) {
 		t.Fatalf("NewManager() error = %v", err)
 	}
 
-	session, err := manager.Create(context.Background(), "principal-1", accessor)
+	session, err := manager.Create(context.Background(), "principal-1")
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
 	if session.ID != "session-1" {
 		t.Fatalf("session.ID = %q, want %q", session.ID, "session-1")
-	}
-	if accessor.sessionID != session.ID {
-		t.Fatalf("accessor session ID = %q, want %q", accessor.sessionID, session.ID)
 	}
 	if !session.ExpiresAt.Equal(now.Add(time.Hour)) {
 		t.Fatalf("session.ExpiresAt = %v, want %v", session.ExpiresAt, now.Add(time.Hour))
@@ -126,24 +107,20 @@ func TestManagerGetRejectsExpiredAndRevokedSessions(t *testing.T) {
 	}
 }
 
-func TestManagerRevokeClearsAccessor(t *testing.T) {
+func TestManagerRevoke(t *testing.T) {
 	store := &memoryStore{sessions: map[string]*Session{
 		"session-1": {
 			ID:        "session-1",
 			ExpiresAt: time.Now().Add(time.Hour),
 		},
 	}}
-	accessor := &testAccessor{}
 	manager, err := NewManager(store)
 	if err != nil {
 		t.Fatalf("NewManager() error = %v", err)
 	}
 
-	if err := manager.Revoke(context.Background(), "session-1", accessor); err != nil {
+	if err := manager.Revoke(context.Background(), "session-1"); err != nil {
 		t.Fatalf("Revoke() error = %v", err)
-	}
-	if !accessor.clear {
-		t.Fatal("Revoke() did not clear the accessor")
 	}
 	if _, err := manager.Get(context.Background(), "session-1"); !errors.Is(err, ErrSessionRevoked) {
 		t.Fatalf("Get() error = %v, want %v", err, ErrSessionRevoked)
