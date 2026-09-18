@@ -36,7 +36,7 @@ var (
 )
 
 type Registrar interface {
-	RegisterPrincipal(ctx context.Context, identifier, secret string) (*authstack.Principal, error)
+	RegisterPrincipal(ctx context.Context, identifier, hashedSecret string) (*authstack.Principal, error)
 }
 
 type Verifier interface {
@@ -163,12 +163,6 @@ func (a *PasswordAuth) RegisterPrincipal(ctx context.Context, identifier, secret
 		return nil, err
 	}
 
-	if principal == nil {
-		return nil, ErrNilPrincipal
-	}
-
-	principal.Provider = authstack.ProviderPassword
-
 	return principal, nil
 }
 
@@ -205,12 +199,6 @@ func (a *PasswordAuth) RegisterPrincipalAnd(
 		return nil, err
 	}
 
-	if principal == nil {
-		return nil, ErrNilPrincipal
-	}
-
-	principal.Provider = authstack.ProviderPassword
-
 	if err := callback(ctx, principal); err != nil {
 		return nil, err
 	}
@@ -233,19 +221,13 @@ func (a *PasswordAuth) AuthenticatePrincipal(ctx context.Context, identifier, se
 
 	principal, hashedSecret, err := a.lookup(ctx, identifier)
 	if err != nil {
-		return nil, err
-	}
-
-	if principal == nil {
 		_ = a.cfg.Hasher.Compare(ctx, a.guardHash, secret)
-		return nil, ErrInvalidCredentials
+		return nil, err
 	}
 
 	if err = a.cfg.Hasher.Compare(ctx, hashedSecret, secret); err != nil {
 		return nil, ErrInvalidCredentials
 	}
-
-	principal.Provider = authstack.ProviderPassword
 
 	return principal, nil
 }
@@ -286,8 +268,6 @@ func (a *PasswordAuth) AuthenticatePrincipalAnd(
 	if err = a.cfg.Hasher.Compare(ctx, hashedSecret, secret); err != nil {
 		return nil, ErrInvalidCredentials
 	}
-
-	principal.Provider = authstack.ProviderPassword
 
 	if err := callback(ctx, principal); err != nil {
 		return nil, err
