@@ -59,9 +59,9 @@ func TestPasswordAuth_AuthenticatePrincipal(t *testing.T) {
 	}
 }
 
-func TestPasswordAuth_AuthenticatePrincipalAnd(t *testing.T) {
+func TestPasswordAuth_AuthenticatePrincipalTx(t *testing.T) {
 	cfg := password.NewConfig()
-	principal := &authstack.Principal{ID: "pl_xy22ykkds", Type: authstack.PrincipalUser}
+	principal := &authstack.Principal{ID: "pl_xy22ykkds", Type: authstack.PrincipalUser, Provider: authstack.ProviderPassword}
 	hashedSecret, err := cfg.Hasher.Hash(context.Background(), "weak password")
 	if err != nil {
 		t.Fatalf("cfg.Hasher.Hash() error = %v", err)
@@ -82,7 +82,7 @@ func TestPasswordAuth_AuthenticatePrincipalAnd(t *testing.T) {
 
 	tx := &authenticationTransaction{principal: principal, hashedSecret: hashedSecret}
 	var callbackPrincipal *authstack.Principal
-	got, err := auth.AuthenticatePrincipalAnd(
+	got, err := auth.AuthenticatePrincipalTx(
 		context.Background(),
 		"mark@authstack.dev",
 		"weak password",
@@ -134,7 +134,7 @@ func TestPasswordAuth_RegisterPrincipal(t *testing.T) {
 	}
 }
 
-func TestPasswordAuth_RegisterPrincipalAnd(t *testing.T) {
+func TestPasswordAuth_RegisterPrincipalTx(t *testing.T) {
 	cfg := password.NewConfig()
 	principal := &authstack.Principal{ID: "pl_xy22ykkds", Type: authstack.PrincipalUser}
 	auth, err := password.New(
@@ -152,7 +152,7 @@ func TestPasswordAuth_RegisterPrincipalAnd(t *testing.T) {
 
 	tx := &registrationTransaction{principal: principal}
 	callbackErr := errors.New("profile creation failed")
-	_, err = auth.RegisterPrincipalAnd(
+	_, err = auth.RegisterPrincipalTx(
 		context.Background(),
 		"mark@authstack.dev",
 		"weak password",

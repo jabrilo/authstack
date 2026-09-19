@@ -45,7 +45,7 @@ type Verifier interface {
 
 type TransactionalRegistrar interface {
 	Registrar
-	RegisterPrincipalAnd(
+	RegisterPrincipalTx(
 		ctx context.Context,
 		identifier string,
 		secret string,
@@ -56,7 +56,7 @@ type TransactionalRegistrar interface {
 
 type TransactionalVerifier interface {
 	Verifier
-	AuthenticatePrincipalAnd(
+	AuthenticatePrincipalTx(
 		ctx context.Context,
 		identifier string,
 		secret string,
@@ -166,7 +166,7 @@ func (a *PasswordAuth) RegisterPrincipal(ctx context.Context, identifier, secret
 	return principal, nil
 }
 
-func (a *PasswordAuth) RegisterPrincipalAnd(
+func (a *PasswordAuth) RegisterPrincipalTx(
 	ctx context.Context,
 	identifier string,
 	secret string,
@@ -232,7 +232,7 @@ func (a *PasswordAuth) AuthenticatePrincipal(ctx context.Context, identifier, se
 	return principal, nil
 }
 
-func (a *PasswordAuth) AuthenticatePrincipalAnd(
+func (a *PasswordAuth) AuthenticatePrincipalTx(
 	ctx context.Context,
 	identifier string,
 	secret string,
